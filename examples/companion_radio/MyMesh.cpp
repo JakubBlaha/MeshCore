@@ -792,6 +792,8 @@ MyMesh::MyMesh(mesh::Radio &radio, mesh::RNG &rng, mesh::RTCClock &rtc, SimpleMe
   _cli_rescue = false;
   offline_queue_len = 0;
   app_target_ver = 0;
+  serial_cmd_len = 0;
+  serial_cmd[0] = 0;
   clearPendingReqs();
   next_ack_idx = 0;
   sign_data = NULL;
@@ -1995,6 +1997,69 @@ void MyMesh::checkSerialInterface() {
   }
 }
 
+void MyMesh::serialCmdSend(const char* args) {
+  uint8_t channel_idx = atoi(args);
+  const char* space = strchr(args, ' ');
+
+  if (!space) {
+    Serial.println("Usage: send <channel_idx> <message>");
+    return;
+  }
+
+  // Can continue with the rest of the command
+
+  const char* text = space + 1;
+
+  ChannelDetails channel;
+
+  if (getChannel(channel_idx, channel)) {
+    uint32_t timestamp = getRTCClock()->getCurrentTime();
+
+    if (sendGroupMessage(timestamp, channel.channel, _prefs.node_name, text, strlen(text))) {
+      Serial.printf("> sent to channel %d\n", channel_idx);
+    } else {
+      Serial.println("Error: send failed");
+    }
+  } else {
+    Serial.printf("Error: invalid channel index %d\n", channel_idx);
+  }
+}
+
+void MyMesh::serialCmdChannels() {
+  Serial.println("Channels:");
+  for (uint8_t i = 0; i < MAX_GROUP_CHANNELS; i++) {
+    ChannelDetails channel;
+    if (getChannel(i, channel) && strlen(channel.name) > 0) {
+      Serial.printf("  [%d] %s\n", i, channel.name);
+    }
+  }
+}
+
+void MyMesh::checkSerialCommand() {
+  while (Serial.available()) {
+    char c = Serial.read();
+
+    if (c == '\n' || c == '\r') {
+      if (serial_cmd_len == 0) continue; // ignore empty lines
+
+      serial_cmd[serial_cmd_len] = 0;
+
+      if (memcmp(serial_cmd, "send", 4) == 0) {
+        serialCmdSend(&serial_cmd[5]);
+      } else if (strcmp(serial_cmd, "channels") == 0) {
+        serialCmdChannels();
+      } else {
+        Serial.printf("Unknown command: %s\n", serial_cmd);
+      }
+
+      serial_cmd_len = 0;
+      serial_cmd[0] = 0;
+    } else if (serial_cmd_len < sizeof(serial_cmd) - 1) {
+      serial_cmd[serial_cmd_len++] = c;
+    }
+  }
+}
+
 void MyMesh::loop() {
   BaseChatMesh::loop();
 
@@ -2002,6 +2067,7 @@ void MyMesh::loop() {
     checkCLIRescueCmd();
   } else {
     checkSerialInterface();
+    checkSerialCommand();
   }
 
   // is there are pending dirty contacts write needed?

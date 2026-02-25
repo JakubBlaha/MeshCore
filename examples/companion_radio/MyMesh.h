@@ -177,6 +177,9 @@ private:
 
   void checkCLIRescueCmd();
   void checkSerialInterface();
+  void checkSerialCommand();
+  void serialCmdSend(const char* args);
+  void serialCmdChannels();
   bool isValidClientRepeatFreq(uint32_t f) const;
 
   // helpers, short-cuts
@@ -199,6 +202,8 @@ private:
   bool _iter_started;
   bool _cli_rescue;
   char cli_command[80];
+  char serial_cmd[160];
+  uint8_t serial_cmd_len;
   uint8_t app_target_ver;
   uint8_t *sign_data;
   uint32_t sign_data_len;
