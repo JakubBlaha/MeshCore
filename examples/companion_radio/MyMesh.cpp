@@ -794,6 +794,7 @@ MyMesh::MyMesh(mesh::Radio &radio, mesh::RNG &rng, mesh::RTCClock &rtc, SimpleMe
   app_target_ver = 0;
   serial_cmd_len = 0;
   serial_cmd[0] = 0;
+  startup_help_time = 1000; // print help after 3 seconds
   clearPendingReqs();
   next_ack_idx = 0;
   sign_data = NULL;
@@ -2030,9 +2031,17 @@ void MyMesh::serialCmdChannels() {
   for (uint8_t i = 0; i < MAX_GROUP_CHANNELS; i++) {
     ChannelDetails channel;
     if (getChannel(i, channel) && strlen(channel.name) > 0) {
-      Serial.printf("  [%d] %s\n", i, channel.name);
+      Serial.printf("%d: %s\n", i, channel.name);
     }
   }
+}
+
+void MyMesh::serialCmdHelp() {
+  Serial.println("Available commands:");
+  Serial.println("  send <channel_idx> <message>  - Send a message to a channel");
+  Serial.println("  channels                      - List available channels");
+  Serial.println("  help                          - Show this help");
+  Serial.println("... send the command on the terminal followed by a newline character.");
 }
 
 void MyMesh::checkSerialCommand() {
@@ -2048,8 +2057,10 @@ void MyMesh::checkSerialCommand() {
         serialCmdSend(&serial_cmd[5]);
       } else if (strcmp(serial_cmd, "channels") == 0) {
         serialCmdChannels();
+      } else if (strcmp(serial_cmd, "help") == 0) {
+        serialCmdHelp();
       } else {
-        Serial.printf("Unknown command: %s\n", serial_cmd);
+        Serial.printf("Unknown command: %s (type 'help' for available commands)\n", serial_cmd);
       }
 
       serial_cmd_len = 0;
@@ -2062,6 +2073,11 @@ void MyMesh::checkSerialCommand() {
 
 void MyMesh::loop() {
   BaseChatMesh::loop();
+
+  if (startup_help_time && millis() >= startup_help_time) {
+    serialCmdHelp();
+    startup_help_time = 0;
+  }
 
   if (_cli_rescue) {
     checkCLIRescueCmd();

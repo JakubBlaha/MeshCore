@@ -180,6 +180,7 @@ private:
   void checkSerialCommand();
   void serialCmdSend(const char* args);
   void serialCmdChannels();
+  void serialCmdHelp();
   bool isValidClientRepeatFreq(uint32_t f) const;
 
   // helpers, short-cuts
@@ -208,6 +209,7 @@ private:
   uint8_t *sign_data;
   uint32_t sign_data_len;
   unsigned long dirty_contacts_expiry;
+  unsigned long startup_help_time;
 
   TransportKey send_scope;
 
